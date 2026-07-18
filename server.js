@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import path from "path";
 
 import authRoutes from "./routes/auth.route.js";
@@ -19,8 +20,33 @@ const PORT = process.env.PORT || 5000;
 
 const __dirname = path.resolve();
 
+const envOrigins = (process.env.CORS_ORIGINS || "")
+	.split(",")
+	.map((origin) => origin.trim())
+	.filter(Boolean);
+
+const allowedOrigins = [
+	...envOrigins,
+	process.env.CLIENT_URL,
+	"http://localhost:5173",
+	"http://127.0.0.1:5173",
+].filter(Boolean);
+
+const corsOptions = {
+	origin: (origin, callback) => {
+		// Allow non-browser requests (like curl/Postman) and configured browser origins.
+		if (!origin || allowedOrigins.includes(origin)) {
+			return callback(null, true);
+		}
+
+		return callback(new Error("Not allowed by CORS"));
+	},
+	credentials: true,
+};
+
 app.use(express.json({ limit: "10mb" })); // allows you to parse the body of the request
 app.use(cookieParser());
+app.use(cors(corsOptions));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
