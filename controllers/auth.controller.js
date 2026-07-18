@@ -2,22 +2,6 @@ import { redis } from "../lib/redis.js";
 import User from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 
-const isProduction = process.env.NODE_ENV === "production";
-
-const refreshCookieOptions = {
-	httpOnly: true,
-	secure: isProduction,
-	sameSite: isProduction ? "none" : "lax",
-	maxAge: 7 * 24 * 60 * 60 * 1000,
-};
-
-const accessCookieOptions = {
-	httpOnly: true,
-	secure: isProduction,
-	sameSite: isProduction ? "none" : "lax",
-	maxAge: 15 * 60 * 1000,
-};
-
 const generateTokens = (userId) => {
 	const accessToken = jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
 		expiresIn: "15m",
@@ -35,8 +19,18 @@ const storeRefreshToken = async (userId, refreshToken) => {
 };
 
 const setCookies = (res, accessToken, refreshToken) => {
-	res.cookie("accessToken", accessToken, accessCookieOptions);
-	res.cookie("refreshToken", refreshToken, refreshCookieOptions);
+	res.cookie("accessToken", accessToken, {
+		httpOnly: true, // prevent XSS attacks, cross site scripting attack
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
+		maxAge: 15 * 60 * 1000, // 15 minutes
+	});
+	res.cookie("refreshToken", refreshToken, {
+		httpOnly: true, // prevent XSS attacks, cross site scripting attack
+		secure: process.env.NODE_ENV === "production",
+		sameSite: "strict", // prevents CSRF attack, cross-site request forgery attack
+		maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+	});
 };
 
 export const signup = async (req, res) => {
@@ -100,8 +94,8 @@ export const logout = async (req, res) => {
 			await redis.del(`refresh_token:${decoded.userId}`);
 		}
 
-		res.clearCookie("accessToken", accessCookieOptions);
-		res.clearCookie("refreshToken", refreshCookieOptions);
+		res.clearCookie("accessToken");
+		res.clearCookie("refreshToken");
 		res.json({ message: "Logged out successfully" });
 	} catch (error) {
 		console.log("Error in logout controller", error.message);
@@ -127,7 +121,12 @@ export const refreshToken = async (req, res) => {
 
 		const accessToken = jwt.sign({ userId: decoded.userId }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
 
-		res.cookie("accessToken", accessToken, accessCookieOptions);
+		res.cookie("accessToken", accessToken, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === "production",
+			sameSite: "strict",
+			maxAge: 15 * 60 * 1000,
+		});
 
 		res.json({ message: "Token refreshed successfully" });
 	} catch (error) {

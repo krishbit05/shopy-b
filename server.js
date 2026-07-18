@@ -20,12 +20,9 @@ const PORT = process.env.PORT || 5000;
 
 const __dirname = path.resolve();
 
-const normalizeOrigin = (origin) => origin.replace(/\/$/, "");
-
 const envOrigins = (process.env.CORS_ORIGINS || "")
 	.split(",")
 	.map((origin) => origin.trim())
-	.map((origin) => normalizeOrigin(origin))
 	.filter(Boolean);
 
 const allowedOrigins = [
@@ -33,16 +30,12 @@ const allowedOrigins = [
 	process.env.CLIENT_URL,
 	"http://localhost:5173",
 	"http://127.0.0.1:5173",
-]
-	.filter(Boolean)
-	.map((origin) => normalizeOrigin(origin));
+].filter(Boolean);
 
 const corsOptions = {
 	origin: (origin, callback) => {
-		const normalizedRequestOrigin = origin ? normalizeOrigin(origin) : origin;
-
 		// Allow non-browser requests (like curl/Postman) and configured browser origins.
-		if (!normalizedRequestOrigin || allowedOrigins.includes(normalizedRequestOrigin)) {
+		if (!origin || allowedOrigins.includes(origin)) {
 			return callback(null, true);
 		}
 
